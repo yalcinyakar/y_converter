@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Byte Converter • Hızlı Dönüştürücü (KB/MB/GB ⇄ KiB/MiB/GiB)</title>
+  <meta name="description" content="Basit ve güçlü bayt dönüştürücü. KB/MB/GB ile KiB/MiB/GiB arasında anında çeviri yapın; bit ve byte dahil tüm birimleri görün." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='16' fill='%230ea5e9'/%3E%3Ctext x='50' y='58' font-size='50' text-anchor='middle' fill='white' font-family='monospace'%3EB%3C/text%3E%3C/svg%3E" />
+  <!-- Tailwind (play CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ["Inter", "system-ui", "Segoe UI", "Roboto", "Helvetica", "Arial", "sans-serif"] },
+        }
+      },
+      darkMode: 'class'
+    };
+  </script>
+  <style>
+    html { color-scheme: light dark; }
+    .glass { backdrop-filter: blur(8px); background: color-mix(in oklab, canvas, transparent 20%); }
+    .num { font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-950 text-slate-900 dark:text-slate-100">
+  <header class="max-w-5xl mx-auto px-4 pt-10 pb-4">
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl md:text-3xl font-bold tracking-tight">Byte Converter <span class="text-sky-500">(SI ⇄ IEC)</span></h1>
+      <button id="themeToggle" class="rounded-xl px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition">Tema</button>
+    </div>
+    <p class="mt-2 text-slate-600 dark:text-slate-400">KB/MB/GB <em>(1000 tabanlı)</em> ile KiB/MiB/GiB <em>(1024 tabanlı)</em> arasında anında dönüşüm. Bit ve Byte dahil.</p>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 pb-16">
+    <section class="glass rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-4 md:p-6">
+      <form id="converterForm" class="grid md:grid-cols-3 gap-3 md:gap-4 items-end">
+        <label class="block">
+          <span class="text-sm text-slate-600 dark:text-slate-400">Miktar</span>
+          <input type="number" step="any" min="0" id="amount" class="mt-1 w-full rounded-2xl border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400" placeholder="Örn. 1.5" value="1" />
+        </label>
+        <label class="block">
+          <span class="text-sm text-slate-600 dark:text-slate-400">Birim</span>
+          <select id="unit" class="mt-1 w-full rounded-2xl border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400">
+            <optgroup label="Bit/Byte">
+              <option value="b">bit (b)</option>
+              <option value="B" selected>byte (B)</option>
+            </optgroup>
+            <optgroup label="SI (1000 tabanlı)">
+              <option value="KB">kilobyte (KB)</option>
+              <option value="MB">megabyte (MB)</option>
+              <option value="GB">gigabyte (GB)</option>
+              <option value="TB">terabyte (TB)</option>
+            </optgroup>
+            <optgroup label="IEC (1024 tabanlı)">
+              <option value="KiB">kibibyte (KiB)</option>
+              <option value="MiB">mebibyte (MiB)</option>
+              <option value="GiB">gibibyte (GiB)</option>
+              <option value="TiB">tebibyte (TiB)</option>
+            </optgroup>
+          </select>
+        </label>
+        <div class="flex items-center gap-3">
+          <label class="flex items-center gap-2">
+            <input id="precision" type="range" min="0" max="8" value="2" class="w-40"/>
+            <span class="text-sm text-slate-600 dark:text-slate-400">Küsurat: <span id="precVal" class="font-semibold">2</span></span>
+          </label>
+          <button type="button" id="copyAll" class="ml-auto rounded-2xl px-4 py-2 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">Tabloyu Kopyala</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="mt-6 grid md:grid-cols-2 gap-6">
+      <div class="glass rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-4 md:p-6">
+        <h2 class="text-lg font-semibold mb-3">Sonuç (Özet)</h2>
+        <div id="summary" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+      </div>
+      <div class="glass rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-4 md:p-6">
+        <h2 class="text-lg font-semibold mb-3">Tüm Birimler Tablosu</h2>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="text-left text-slate-600 dark:text-slate-400">
+              <tr>
+                <th class="py-2 pr-4">Birim</th>
+                <th class="py-2 pr-4">Değer</th>
+                <th class="py-2">Kopyala</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody" class="align-top"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <footer class="mt-10 text-xs text-slate-500 dark:text-slate-400">
+      <p>Not: SI (KB, MB, GB) için 1 KB = 1000 B; IEC (KiB, MiB, GiB) için 1 KiB = 1024 B kabul edilir. 1 B = 8 b.</p>
+    </footer>
+  </main>
+
+  <script>
+    // --- Tema ---
+    const themeBtn = document.getElementById('themeToggle');
+    const applyTheme = () => {
+      const prefer = localStorage.getItem('theme');
+      const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const dark = prefer ? prefer === 'dark' : systemDark;
+      document.documentElement.classList.toggle('dark', dark);
+    };
+    applyTheme();
+    themeBtn.addEventListener('click', () => {
+      const nowDark = !document.documentElement.classList.contains('dark');
+      document.documentElement.classList.toggle('dark', nowDark);
+      localStorage.setItem('theme', nowDark ? 'dark' : 'light');
+    });
+
+    // --- Dönüşüm Mantığı ---
+    const units = {
+      // temel
+      b: { label: 'bit (b)', toBytes: x => x / 8, fromBytes: B => B * 8 },
+      B: { label: 'byte (B)', toBytes: x => x, fromBytes: B => B },
+      // SI 1000
+      KB: { label: 'kilobyte (KB)', toBytes: x => x * 1_000, fromBytes: B => B / 1_000 },
+      MB: { label: 'megabyte (MB)', toBytes: x => x * 1_000**2, fromBytes: B => B / 1_000**2 },
+      GB: { label: 'gigabyte (GB)', toBytes: x => x * 1_000**3, fromBytes: B => B / 1_000**3 },
+      TB: { label: 'terabyte (TB)', toBytes: x => x * 1_000**4, fromBytes: B => B / 1_000**4 },
+      // IEC 1024
+      KiB: { label: 'kibibyte (KiB)', toBytes: x => x * 1024, fromBytes: B => B / 1024 },
+      MiB: { label: 'mebibyte (MiB)', toBytes: x => x * 1024**2, fromBytes: B => B / 1024**2 },
+      GiB: { label: 'gibibyte (GiB)', toBytes: x => x * 1024**3, fromBytes: B => B / 1024**3 },
+      TiB: { label: 'tebibyte (TiB)', toBytes: x => x * 1024**4, fromBytes: B => B / 1024**4 },
+    };
+    const order = ['b','B','KB','MB','GB','TB','KiB','MiB','GiB','TiB'];
+
+    const $ = sel => document.querySelector(sel);
+    const amountEl = $('#amount');
+    const unitEl = $('#unit');
+    const precEl = $('#precision');
+    const precValEl = $('#precVal');
+    const tableBody = $('#tableBody');
+    const summaryEl = $('#summary');
+    const copyAllBtn = $('#copyAll');
+
+    function fmt(n, p) {
+      if (!isFinite(n)) return '—';
+      return Number(n).toLocaleString('tr-TR', { maximumFractionDigits: p, minimumFractionDigits: Math.min(2, p) });
+    }
+
+    function compute() {
+      const amt = parseFloat(amountEl.value || '0');
+      const u = unitEl.value;
+      const p = parseInt(precEl.value, 10);
+      precValEl.textContent = String(p);
+      if (!units[u]) return;
+      const bytes = units[u].toBytes(amt);
+
+      // Özet kartları
+      summaryEl.innerHTML = '';
+      const summaryPairs = [
+        ['Bit', units.b.fromBytes(bytes)],
+        ['Byte', units.B.fromBytes(bytes)],
+        ['SI: KB / MB / GB / TB', `${fmt(units.KB.fromBytes(bytes), p)} KB · ${fmt(units.MB.fromBytes(bytes), p)} MB · ${fmt(units.GB.fromBytes(bytes), p)} GB · ${fmt(units.TB.fromBytes(bytes), p)} TB`],
+        ['IEC: KiB / MiB / GiB / TiB', `${fmt(units.KiB.fromBytes(bytes), p)} KiB · ${fmt(units.MiB.fromBytes(bytes), p)} MiB · ${fmt(units.GiB.fromBytes(bytes), p)} GiB · ${fmt(units.TiB.fromBytes(bytes), p)} TiB`],
+      ];
+      for (const [k,v] of summaryPairs) {
+        const card = document.createElement('div');
+        card.className = 'rounded-2xl border border-slate-200 dark:border-slate-800 p-4 bg-white/60 dark:bg-slate-900/40';
+        card.innerHTML = `<div class="text-xs text-slate-500 mb-1">${k}</div><div class="text-lg font-semibold num">${typeof v==='number'?fmt(v,p):v}</div>`;
+        summaryEl.appendChild(card);
+      }
+
+      // Tablo
+      tableBody.innerHTML = '';
+      for (const key of order) {
+        const val = units[key].fromBytes(bytes);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="py-2 pr-4 text-slate-700 dark:text-slate-300">${units[key].label}</td>
+          <td class="py-2 pr-4 num">${fmt(val, p)}</td>
+          <td class="py-2"><button data-copy="${fmt(val, p)} ${units[key].label.split(' ')[0]}" class="copyBtn rounded-xl border border-slate-300 dark:border-slate-700 px-3 py-1 text-xs hover:bg-slate-100 dark:hover:bg-slate-800">Kopyala</button></td>
+        `;
+        tableBody.appendChild(tr);
+      }
+    }
+
+    // Kopyalama
+    document.addEventListener('click', async (e) => {
+      const btn = e.target.closest('button.copyBtn');
+      if (btn) {
+        try {
+          await navigator.clipboard.writeText(btn.getAttribute('data-copy'));
+          btn.textContent = 'Kopyalandı!';
+          setTimeout(() => (btn.textContent = 'Kopyala'), 1200);
+        } catch (err) {
+          alert('Kopyalama başarısız: ' + err.message);
+        }
+      }
+    });
+
+    copyAllBtn.addEventListener('click', async () => {
+      const rows = [...tableBody.querySelectorAll('tr')].map(tr => tr.children[0].textContent + '\t' + tr.children[1].textContent);
+      const text = 'Birim\tDeğer\n' + rows.join('\n');
+      try {
+        await navigator.clipboard.writeText(text);
+        copyAllBtn.textContent = 'Tablo kopyalandı!';
+        setTimeout(() => (copyAllBtn.textContent = 'Tabloyu Kopyala'), 1200);
+      } catch (err) {
+        alert('Kopyalama başarısız: ' + err.message);
+      }
+    });
+
+    ['input','change'].forEach(ev => {
+      amountEl.addEventListener(ev, compute);
+      unitEl.addEventListener(ev, compute);
+      precEl.addEventListener(ev, compute);
+    });
+
+    // URL param desteği (?v=1.5&u=GB)
+    (function initFromURL(){
+      const sp = new URLSearchParams(location.search);
+      if (sp.has('v')) amountEl.value = sp.get('v');
+      if (sp.has('u') && units[sp.get('u')]) unitEl.value = sp.get('u');
+    })();
+
+    // İlk hesap
+    compute();
+  </script>
+</body>
+</html>
